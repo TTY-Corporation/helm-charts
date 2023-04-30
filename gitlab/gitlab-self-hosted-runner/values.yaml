@@ -1,0 +1,70 @@
+runnerRegistrationToken: <Repo string> # replace with the one from your GitLab repo
+gitlabUrl: <URL of the gitlab>
+gitlab-runner.runners.privileged: true
+rbac:
+  create: true
+  rules:
+  - apiGroups:
+    - ''
+    resources:
+    - pods
+    verbs:
+    - list
+    - get
+    - watch
+    - create
+    - delete
+  - apiGroups:
+    - ''
+    resources:
+    - pods/exec
+    verbs:
+    - create
+  - apiGroups:
+    - ''
+    resources:
+    - pods/log
+    verbs:
+    - get
+  - apiGroups:
+    - ''
+    resources:
+    - pods/attach
+    verbs:
+    - list
+    - get
+    - create
+    - delete
+    - update
+  - apiGroups:
+    - ''
+    resources:
+    - secrets
+    verbs:
+    - list
+    - get
+    - create
+    - delete
+    - update
+  - apiGroups:
+    - ''
+    resources:
+    - configmaps
+    verbs:
+    - list
+    - get
+    - create
+    - delete
+    - update
+runners:
+  privileged: true
+  config: |
+    [[runners]]
+      [runners.kubernetes]
+        namespace = "{{.Release.Namespace}}"
+        image = "ubuntu:20.04"
+        privileged = true
+      [[runners.kubernetes.volumes.empty_dir]]
+        name = "docker-certs"
+        mount_path = "/certs/client"
+        medium = "Memory"
