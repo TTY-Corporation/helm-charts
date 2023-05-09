@@ -1,0 +1,112 @@
+# Chart repositories used from within this state file
+#
+# Use `helm-s3` and `helm-git` and whatever Helm Downloader plugins
+# to use repositories other than the official repository or one backend by chartmuseum.
+repositories:
+  # To use official "stable" charts a.k.a https://github.com/helm/charts/tree/master/stable
+  - name: ingress-nginx
+    url: "https://kubernetes.github.io/ingress-nginx"
+  - name: jetstack
+    url: "https://charts.jetstack.io"
+  - name: bitnami
+    url: "https://charts.bitnami.com/bitnami"
+  - name: argo-helm
+    url: "https://argoproj.github.io/argo-helm"
+
+# Default values to set for args along with dedicated keys that can be set by contributors, cli args take precedence over these.
+# In other words, unset values results in no flags passed to helm.
+# See the helm usage (helm SUBCOMMAND -h) for more info on default values when those flags aren't provided.
+helmDefaults:
+  # dedicated default key for helm flag --cleanup-on-fail
+  cleanupOnFail: true
+  # wait for k8s resources via --wait. (default false)
+  atomic: true
+  # time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks, and waits on pod/pvc/svc/deployment readiness) (default 300)
+  timeout: 120
+  # forces resource update through delete/recreate if needed (default false)
+  force: false
+  # when using helm 3.2+, automatically create release namespaces if they do not exist (default true)
+  createNamespace: true
+
+# The list of environments managed by helmfile.
+#
+# The default is `environments: {"default": {}}` which implies:
+#
+# - `{{ .Environment.Name }}` evaluates to "default"
+# - `{{ .Values }}` being empty
+
+environments:
+  # The "default" environment is available and used when `helmfile` is run without `--environment NAME`.
+  production:
+    missingFileHandler: Error
+    # values:
+    #   - namespace: titi
+    #   - debug: "true"
+  
+---
+# The desired states of Helm releases.
+#
+# Helmfile runs various helm commands to converge the current state in the live cluster to the desired state defined here.
+releases:
+
+  - name: ingress-nginx
+    namespace: ingress-nginx
+    chart: ingress-nginx/ingress-nginx
+    # version: ~4.5.2
+    # set to either "Error" or "Warn". "Error" instructs helmfile to fail when unable to find a values or secrets file. When "Warn", it prints the file and continues
+    missingFileHandler: Error
+    needs:
+      - cert-manager/cert-manager
+
+  - name: cert-manager
+    namespace: cert-manager
+    chart: jetstack/cert-manager
+    # version: v1.11.0
+    values:
+      - installCRDs: true
+
+  - name: argo-cd
+    namespace: argocd
+    chart: argo-helm/argo-cd
+    # set to either "Error" or "Warn". "Error" instructs helmfile to fail when unable to find a values or secrets file. When "Warn", it prints the file and continues
+    missingFileHandler: Error
+    needs:
+      - ingress-nginx/ingress-nginx
+    values:
+      - server:
+          ingress:
+            enabled: true
+            ingressClassName: "nginx"
+            hosts: ["argocd.cluster-2022-9.dopolytech.fr"]
+            annotations: 
+              cert-manager.io/cluster-issuer: letsencrypt-production
+              nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+              nginx.ingress.kubernetes.io/ssl-passthrough: true
+              kubernetes.io/tls-acme: true 
+            tls: 
+            - secretName: "argocd.cluster-2022-9.dopolytech.fr"
+              hosts: 
+              - "argocd.cluster-2022-9.dopolytech.fr"
+
+  - name: minio
+    namespace: minio
+    chart: bitnami/minio
+    # set to either "Error" or "Warn". "Error" instructs helmfile to fail when unable to find a values or secrets file. When "Warn", it prints the file and continues
+    missingFileHandler: Error
+    needs:
+      - ingress-nginx/ingress-nginx
+    values:
+      - ingress:
+          enabled: true
+          ingressClassName: "nginx"
+          hostname: "minio.cluster-2022-9.dopolytech.fr"
+          annotations: 
+            cert-manager.io/cluster-issuer: letsencrypt-production
+          tls: true
+      - apiIngress:
+          enabled: true
+          ingressClassName: "nginx"
+          hostname: "minio-api.cluster-2022-9.dopolytech.fr"
+          annotations: 
+            cert-manager.io/cluster-issuer: letsencrypt-production
+          tls: true
