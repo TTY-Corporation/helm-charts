@@ -1,7 +1,7 @@
 ---
 apiVersion: v2
-name: block-time-manager
-description: A Helm chart for Kubernetes
+name: 3-tier
+description: 3-tier architecture application
 
 # A chart can be either an 'application' or a 'library' chart.
 #
