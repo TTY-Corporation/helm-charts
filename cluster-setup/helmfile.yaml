@@ -18,7 +18,7 @@ repositories:
 # See the helm usage (helm SUBCOMMAND -h) for more info on default values when those flags aren't provided.
 helmDefaults:
   # dedicated default key for helm flag --cleanup-on-fail
-  cleanupOnFail: true
+  cleanupOnFail: false
   # wait for k8s resources via --wait. (default false)
   atomic: true
   # time in seconds to wait for any individual Kubernetes operation (like Jobs for hooks, and waits on pod/pvc/svc/deployment readiness) (default 300)
